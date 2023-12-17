@@ -79,6 +79,7 @@ CRITERIA_REG = {
     "absolute_error": _criterion.MAE,
     "poisson": _criterion.Poisson,
     "huber": _criterion.Huber,
+    "huber2": _criterion.Huber2,
 }
 
 DENSE_SPLITTERS = {"best": _splitter.BestSplitter, "random": _splitter.RandomSplitter}
@@ -383,7 +384,7 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
                     self.n_outputs_, self.n_classes_
                 )
             else:
-                if self.criterion == "huber":
+                if self.criterion == "huber" or self.criterion == "huber2":
                     criterion = CRITERIA_REG[self.criterion](
                         self.n_outputs_, n_samples, self.delta
                     )
@@ -1330,7 +1331,14 @@ class DecisionTreeRegressor(RegressorMixin, BaseDecisionTree):
         **BaseDecisionTree._parameter_constraints,
         "criterion": [
             StrOptions(
-                {"squared_error", "friedman_mse", "absolute_error", "poisson", "huber"}
+                {
+                    "squared_error",
+                    "friedman_mse",
+                    "absolute_error",
+                    "poisson",
+                    "huber",
+                    "huber2",
+                }
             ),
             Hidden(Criterion),
         ],
