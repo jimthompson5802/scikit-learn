@@ -1968,7 +1968,6 @@ cdef class Huber2(RegressionCriterion):
         # Parent class RegresionCriterion's __cinit__ method is called automatically
         # and initilizes all other required attributes.
         self.delta = delta
-        self.y_sum = np.zeros(n_outputs, dtype=np.float64)
 
     cdef int init(
         self,
@@ -2074,10 +2073,18 @@ cdef class Huber2(RegressionCriterion):
         cdef float64_t w = 1.0
         cdef intp_t i, k, p
         cdef intp_t n_outputs = self.n_outputs
+        cdef float64_t yh_sum = 0.0, yh_sq_sum = 0.0, yh_abs_sum = 0.0
+        cdef intp_t n_1 = 0, n_2 = 0
+        cdef float64_t huber_loss_1 = 0.0, huber_loss_2 = 0.0, huber_loss_total = 0.0
 
         for k in range(n_outputs):
             y_mean = y_sum[k] / weight_sum
 
+            yh_sum = 0.0
+            yh_sq_sum = 0.0
+            yh_abs_sum = 0.0
+            n_1 = 0
+            n_2 = 0
             for p in range(start, end):
                 i = sample_indices[p]
 
@@ -2087,11 +2094,20 @@ cdef class Huber2(RegressionCriterion):
                 y_ik = self.y[i, k]
                 error = y_ik - y_mean
                 if abs(error) <= self.delta:
-                    huber_loss += w * 0.5 * error**2
+                    yh_sum += y_ik
+                    yh_sq_sum += y_ik * y_ik
+                    n_1 += 1
                 else:
-                    huber_loss += w * self.delta * (abs(error) - 0.5 * self.delta)
+                    yh_abs_sum += abs(error)
+                    n_2 += 1
 
-        return huber_loss / (weight_sum * n_outputs)
+            # Calculate the two parts of the Huber loss
+            huber_loss_1 = 0.5 * (yh_sq_sum - 2 * y_mean * yh_sum + n_1 * (y_mean**2))
+            huber_loss_2 = self.delta * yh_abs_sum - 0.5 * self.delta**2 * n_2
+
+            huber_loss_total += (huber_loss_1 + huber_loss_2) / (n_1 + n_2)
+
+        return huber_loss_total
 
     cdef float64_t node_impurity(self) noexcept nogil:
         """
